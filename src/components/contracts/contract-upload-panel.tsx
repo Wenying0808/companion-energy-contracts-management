@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { UploadCloud, FileText, X, Sparkles } from "lucide-react";
+import { UploadCloud, FileText, X, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, NativeSelect } from "@/components/wizard/fields";
 import { SidePanel } from "@/components/ui/side-panel";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
+import type { DraftContract } from "@/lib/types";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -18,20 +19,21 @@ export function ContractUploadPanel({
   open,
   onOpenChange,
   defaultAssetId,
-  onExtract,
+  onDrafts,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultAssetId?: string;
-  // Seam for the future AI agent: receives the selected PDFs + target asset.
-  onExtract?: (files: File[], assetId: string) => void;
+  // Called with the drafted contracts returned by the extraction agent.
+  onDrafts: (drafts: DraftContract[]) => void;
 }) {
   const assets = useAppStore((s) => s.assets);
 
   const [assetId, setAssetId] = useState(defaultAssetId ?? assets[0]?.id ?? "");
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function addFiles(list: FileList | null) {
@@ -49,13 +51,26 @@ export function ContractUploadPanel({
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function handleExtract() {
-    onExtract?.(files, assetId);
-    // AI extraction is implemented later; for now surface a clear placeholder.
-    setSubmitted(true);
+  async function handleExtract() {
+    setError(null);
+    setLoading(true);
+    try {
+      const body = new FormData();
+      body.append("assetId", assetId);
+      files.forEach((f) => body.append("files", f));
+      const res = await fetch("/api/extract-contracts", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error ?? "Extraction failed. Please try again.");
+        return;
+      }
+      onDrafts(data.drafts as DraftContract[]);
+    } catch {
+      setError("Could not reach the extraction service. Is the dev server running?");
+    } finally {
+      setLoading(false);
+    }
   }
-
-  const assetName = assets.find((a) => a.id === assetId)?.name ?? "the asset";
 
   return (
     <SidePanel open={open} onOpenChange={onOpenChange} labelledBy="upload-title">
@@ -158,26 +173,33 @@ export function ContractUploadPanel({
             </div>
           )}
 
-          {/* Placeholder for the not-yet-built AI step */}
-          {submitted && (
-            <div className="rounded-md border border-dashed bg-muted/40 p-4 text-sm">
-              <p className="font-medium">Ready for AI extraction</p>
-              <p className="mt-1 text-muted-foreground">
-                {files.length} PDF{files.length > 1 ? "s" : ""} queued for{" "}
-                <span className="font-medium text-foreground">{assetName}</span>.
-                Once the extraction agent is implemented, drafted contracts will
-                appear here for your review.
-              </p>
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex items-center gap-2 rounded-md border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Reading {files.length} PDF{files.length > 1 ? "s" : ""} and drafting
+              contracts…
             </div>
           )}
         </div>
 
         <div className="flex items-center justify-between border-t p-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleExtract} disabled={files.length === 0}>
-            <Sparkles className="size-4" /> Extract &amp; Review
+          <Button onClick={handleExtract} disabled={files.length === 0 || loading}>
+            {loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+            Extract &amp; Review
           </Button>
         </div>
       </div>

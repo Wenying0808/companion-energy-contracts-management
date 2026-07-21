@@ -36,6 +36,7 @@ interface AppState {
   updateAsset: (id: string, patch: Partial<Asset>) => void;
   removeAsset: (id: string) => void;
   addContract: (contract: Contract) => void;
+  addContracts: (contracts: Contract[]) => void;
   updateContract: (id: string, patch: Partial<Contract>) => void;
   removeContract: (id: string) => void;
 }
@@ -55,6 +56,7 @@ export const useAppStore = create<AppState>((set) => ({
       contracts: s.contracts.filter((c) => c.assetId !== id),
     })),
   addContract: (contract) => set((s) => ({ contracts: [...s.contracts, contract] })),
+  addContracts: (list) => set((s) => ({ contracts: [...s.contracts, ...list] })),
   updateContract: (id, patch) =>
     set((s) => ({
       contracts: s.contracts.map((c) => (c.id === id ? { ...c, ...patch } : c)),

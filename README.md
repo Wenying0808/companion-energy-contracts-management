@@ -67,22 +67,58 @@ contracts matter for an asset):
 
 - **Add manually** → the 4-step `ContractWizard`.
 - **Extract from PDF (AI)** → `ContractUploadPanel`, a multi-file PDF uploader
-  (drag & drop or browse) with an asset selector.
+  (drag & drop or browse) with an asset selector → the AI pipeline → the review panel.
 
-### Where the AI agent plugs in
+## AI contract extraction
 
-`ContractUploadPanel` exposes an `onExtract(files: File[], assetId: string)`
-callback (see `src/components/contracts/contract-upload-panel.tsx`). Today it just
-shows a "Ready for AI extraction" placeholder. To implement extraction: send the
-files to your agent, get back draft `Contract` objects, and open them in the
-`ContractWizard` (its Review step already renders a full contract) for the user to
-confirm before `addContract`.
+Built with the **Vercel AI SDK** (`ai`) + **`@ai-sdk/anthropic`**. Claude reads
+the PDFs natively (no OCR/parse library).
 
-## Roadmap (not yet built)
+**Setup (required to use extraction):**
 
-The data model, upload panel, and canvas are structured so these drop in later:
+```bash
+cp .env.example .env.local     # then paste your key
+# .env.local:  ANTHROPIC_API_KEY=sk-ant-...
+npm run dev
+```
 
-1. ✅ Upload signed contract PDFs (done — see above).
-2. Extract fields via an AI agent → draft a `Contract` (wire `onExtract`).
-3. User reviews the draft (reuses the contract wizard's Review step).
+Your Anthropic account needs available credits, or the API returns a
+"credit balance too low" error (surfaced in the upload panel).
+
+**Pipeline** (`src/lib/ai/*`, `src/app/api/extract-contracts/route.ts`):
+
+1. `POST /api/extract-contracts` (multipart: `files[]` + `assetId`) — server-side only.
+2. For each PDF: **segment** it into the individual contracts it contains and
+   classify each (Haiku), then **extract** each one's type-specific fields (Sonnet)
+   with the matching Zod schema. A single PDF may bundle several contracts, so one
+   file can produce several drafts.
+3. Returns `DraftContract[]` (typed params + confidence + source filename), flattened
+   across all uploaded files.
+
+The "knowledge base" is the in-code registry in `src/lib/contract-types.ts`
+(21 contract types) serialized into the prompt — swap for retrieval later if it grows.
+
+**Review** (`ContractDraftReviewPanel`): draft list on the left (Contract 1/2/3 +
+confidence), an editable per-type form on the right (shares `ContractParamsFields`
+with the wizard), accept/skip per draft, then **Add N contracts** (bulk
+`addContracts`).
+
+Model tiers are in `src/lib/ai/config.ts`.
+
+## Contract types
+
+`src/lib/contract-types.ts` is the single source of truth for all 21 types. Five are
+modelled with dedicated parameter forms + extraction schemas — **Day-Ahead Spot,
+Fixed Hedge, Fixed Cost, Energy Tax, PPA** — and every other type falls back to a
+generic key/value parameter set. Add a dedicated form by giving a type a new
+`paramsKind` and extending `ContractParameters`, `ContractParamsFields`, and
+`src/lib/ai/schemas.ts`.
+
+## Roadmap
+
+1. ✅ Upload signed contract PDFs.
+2. ✅ Extract fields via an AI agent → draft contracts.
+3. ✅ User reviews/edits drafts, then accepts.
 4. Visualize relationships between contracts on the canvas.
+5. Later: persistence (in-memory today), dedicated forms for the remaining types,
+   per-field confidence highlighting, a real vector knowledge base.

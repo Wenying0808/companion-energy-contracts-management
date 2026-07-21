@@ -1,7 +1,5 @@
-// Domain types for the Energy Contracts Management skeleton.
-// No DB — these shapes back the in-memory Zustand store and are designed so the
-// future roadmap (PDF upload -> AI extraction -> review -> relationship graph)
-// can populate them without structural changes.
+// Domain types for the Energy Contracts Management app.
+// No DB — these shapes back the in-memory Zustand store.
 
 export type AssetType = "Grid Connection" | "Solar Panels" | "Battery" | "Wind";
 
@@ -26,15 +24,14 @@ export interface Asset {
   position: { x: number; y: number };
 }
 
-export type ContractCategory = "Commodity" | "Grid & Regulated";
+// --- Contracts ---------------------------------------------------------------
 
-export type ContractType = "PPA" | "Taxes & Levies" | "Hedges" | "Spot";
+// Table-level grouping used in the Contracts list.
+export type ContractCategory = "Commodity" | "Grid & Regulated";
 
 export type EnergyDirection = "Consumption" | "Injection";
 
-export type ContractDirection = "Buy" | "Sell";
-
-export type RangeInclusion = "Within" | "Outside";
+export type SpotContractDirection = "Buy" | "Sell" | "Not Applicable";
 
 export const DAYS_OF_WEEK = [
   "monday",
@@ -48,58 +45,121 @@ export const DAYS_OF_WEEK = [
 
 export type DayOfWeek = (typeof DAYS_OF_WEEK)[number];
 
-export interface ContractFinancials {
-  contractType: string; // free-form label, e.g. "Day-Ahead Spot Contract"
-  spotProduct: string; // e.g. "BE - Spot", "-" when N/A
-  constant: string; // e.g. "10.00 €/MWh"
-  scaling: string; // e.g. "2"
-  energyDirection: EnergyDirection;
-  contractDirection: ContractDirection;
-}
+export type RangeInclusion = "Within" | "Outside";
 
 export interface ContractTimeWindow {
+  mode: "always" | "custom";
   startTime: string; // "09:00:00"
   endTime: string; // "17:00:01"
   daysOfWeek: DayOfWeek[];
   rangeInclusion: RangeInclusion;
 }
 
+// Per-type parameters, discriminated by `kind`. Five types are modelled in
+// detail; every other contract type falls back to `generic` key/value fields.
+export interface DayAheadSpotParams {
+  kind: "dayAheadSpot";
+  category: "cost" | "revenue";
+  spotProduct: string; // e.g. "BE - Spot"
+  constant: string; // optional, e.g. "10.00 €/MWh" ("" when unset)
+  scaling: string; // optional, e.g. "2" ("" when unset)
+  energyDirection: EnergyDirection;
+  contractDirection: SpotContractDirection;
+}
+
+export type AveragingPeriod =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "annually";
+
+// Same as Day-Ahead Spot, but settled at the average spot price over a period.
+export interface AverageDayAheadSpotParams {
+  kind: "averageDayAheadSpot";
+  category: "cost" | "revenue";
+  spotProduct: string;
+  constant: string;
+  scaling: string;
+  energyDirection: EnergyDirection;
+  contractDirection: SpotContractDirection;
+  period: AveragingPeriod;
+}
+
+export interface AccessPowerParams {
+  kind: "accessPower";
+  accessCapacity: string; // kW, optional ("" when unset)
+  regularCost: string; // €/kW
+}
+
+export interface FixedHedgeParams {
+  kind: "fixedHedge";
+  hedgeBasis: "power" | "energy";
+  unit: "kW" | "kWh";
+  price: string; // €/MWh
+  energyDirection: EnergyDirection;
+}
+
+export interface FixedCostParams {
+  kind: "fixedCost";
+  costPerYear: string; // €/year
+}
+
+export interface EnergyTaxParams {
+  kind: "energyTax";
+  price: string; // €/MWh
+  energyDirection: EnergyDirection;
+}
+
+export interface PpaParams {
+  kind: "ppa";
+  ppaType: "pay as consumed" | "pay as produced";
+  meterLocation: "onsite" | "offsite";
+  price: string; // €/MWh
+  producingAsset: string; // e.g. "Solar Panels"
+  quantityScaling: string; // default "1"
+}
+
+export interface GenericParams {
+  kind: "generic";
+  fields: { label: string; value: string }[];
+}
+
+export type ContractParameters =
+  | DayAheadSpotParams
+  | AverageDayAheadSpotParams
+  | AccessPowerParams
+  | FixedHedgeParams
+  | FixedCostParams
+  | EnergyTaxParams
+  | PpaParams
+  | GenericParams;
+
+export type ParamsKind = ContractParameters["kind"];
+
 export interface Contract {
   id: string;
   name: string;
-  subtitle: string; // small text under the name (e.g. supplier code "X", "engie")
+  subtitle: string; // small text under the name (e.g. supplier)
   assetId: string;
   supplier: string;
-  group: string; // e.g. "Consumption"
-  category: ContractCategory;
-  type: ContractType;
-  subType: string; // e.g. "Physical Power Purchase", "Energy Tax", "Fixed Hedge"
+  type: string; // contract-type registry `value` (see contract-types.ts)
   startDate: string; // ISO yyyy-mm-dd
   endDate: string; // ISO yyyy-mm-dd
-  financial: ContractFinancials;
   timeWindow: ContractTimeWindow;
-  volume: string; // e.g. "1 MW", "-"
-  parametersDisplay: string; // pre-formatted badge text, e.g. "2 * BE Spot + 10.00 €/MWh"
+  parameters: ContractParameters;
 }
 
-export const CONTRACT_TYPE_META: Record<
-  ContractType,
-  { defaultCategory: ContractCategory; subTypes: string[] }
-> = {
-  PPA: {
-    defaultCategory: "Commodity",
-    subTypes: ["Physical Power Purchase"],
-  },
-  "Taxes & Levies": {
-    defaultCategory: "Grid & Regulated",
-    subTypes: ["Energy Tax", "Fixed Cost", "Grid Fee"],
-  },
-  Hedges: {
-    defaultCategory: "Commodity",
-    subTypes: ["Fixed Hedge", "Floating Hedge"],
-  },
-  Spot: {
-    defaultCategory: "Commodity",
-    subTypes: ["Day-Ahead Spot Contract", "Intraday Spot Contract"],
-  },
-};
+// A contract drafted by the extraction agent, awaiting user review.
+export interface DraftContract {
+  name: string;
+  supplier: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  assetId: string;
+  timeWindow: ContractTimeWindow;
+  parameters: ContractParameters;
+  confidence: number; // 0..1
+  sourceFileName: string;
+}

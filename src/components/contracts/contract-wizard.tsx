@@ -7,14 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Stepper } from "@/components/wizard/stepper";
 import { Field, NativeSelect, DayPicker } from "@/components/wizard/fields";
-import { useAppStore, nextId } from "@/lib/store";
-import { formatParameters, formatDate } from "@/lib/format";
 import {
-  CONTRACT_TYPE_META,
-  DAYS_OF_WEEK,
-  type Contract,
-  type ContractType,
-} from "@/lib/types";
+  ContractParamsFields,
+  paramSummaryRows,
+} from "@/components/contracts/contract-params-fields";
+import { useAppStore, nextId } from "@/lib/store";
+import { formatDate } from "@/lib/format";
+import {
+  CONTRACT_TYPES,
+  contractTypeLabel,
+  contractCategory,
+  paramsKindFor,
+  defaultParams,
+  defaultTimeWindow,
+} from "@/lib/contract-types";
+import { DAYS_OF_WEEK, type Contract } from "@/lib/types";
 
 const STEPS = [
   { key: "details", label: "Contract Details" },
@@ -23,7 +30,7 @@ const STEPS = [
   { key: "review", label: "Review & Submit" },
 ];
 
-type Draft = Omit<Contract, "id" | "parametersDisplay">;
+type Draft = Omit<Contract, "id">;
 
 function emptyDraft(assetId: string): Draft {
   return {
@@ -31,27 +38,11 @@ function emptyDraft(assetId: string): Draft {
     subtitle: "",
     assetId,
     supplier: "",
-    group: "Consumption",
-    category: "Commodity",
-    type: "Spot",
-    subType: CONTRACT_TYPE_META.Spot.subTypes[0],
+    type: "dynamic",
     startDate: "2026-07-01",
     endDate: "2026-07-31",
-    financial: {
-      contractType: CONTRACT_TYPE_META.Spot.subTypes[0],
-      spotProduct: "BE - Spot",
-      constant: "10.00 €/MWh",
-      scaling: "1",
-      energyDirection: "Consumption",
-      contractDirection: "Buy",
-    },
-    timeWindow: {
-      startTime: "00:00:00",
-      endTime: "24:00:00",
-      daysOfWeek: [...DAYS_OF_WEEK],
-      rangeInclusion: "Within",
-    },
-    volume: "-",
+    timeWindow: defaultTimeWindow(),
+    parameters: defaultParams("dayAheadSpot"),
   };
 }
 
@@ -71,13 +62,10 @@ export function ContractWizard({
   const updateContract = useAppStore((s) => s.updateContract);
 
   const [step, setStep] = useState(0);
-  // The wizard mounts fresh each time it opens, so initial state can be derived
-  // directly from props — no reset effect needed.
   const [draft, setDraft] = useState<Draft>(() => {
     if (editing) {
-      const { id: _id, parametersDisplay: _p, ...rest } = editing;
+      const { id: _id, ...rest } = editing;
       void _id;
-      void _p;
       return rest;
     }
     return emptyDraft(defaultAssetId ?? assets[0]?.id ?? "");
@@ -86,35 +74,28 @@ export function ContractWizard({
   function patch(p: Partial<Draft>) {
     setDraft((d) => ({ ...d, ...p }));
   }
-  function patchFinancial(p: Partial<Draft["financial"]>) {
-    setDraft((d) => ({ ...d, financial: { ...d.financial, ...p } }));
-  }
   function patchTime(p: Partial<Draft["timeWindow"]>) {
     setDraft((d) => ({ ...d, timeWindow: { ...d.timeWindow, ...p } }));
   }
 
-  function onTypeChange(type: ContractType) {
-    const meta = CONTRACT_TYPE_META[type];
-    patch({
-      type,
-      category: meta.defaultCategory,
-      subType: meta.subTypes[0],
-      financial: { ...draft.financial, contractType: meta.subTypes[0] },
-    });
+  function onTypeChange(type: string) {
+    patch({ type, parameters: defaultParams(paramsKindFor(type)) });
   }
 
   function handleSave() {
-    const parametersDisplay = formatParameters(draft.financial);
+    const finalized: Draft = {
+      ...draft,
+      subtitle: draft.subtitle || draft.supplier,
+    };
     if (editing) {
-      updateContract(editing.id, { ...draft, parametersDisplay });
+      updateContract(editing.id, finalized);
     } else {
-      addContract({ ...draft, id: nextId("contract"), parametersDisplay });
+      addContract({ ...finalized, id: nextId("contract") });
     }
     onOpenChange(false);
   }
 
-  const assetName =
-    assets.find((a) => a.id === draft.assetId)?.name ?? "Unknown";
+  const assetName = assets.find((a) => a.id === draft.assetId)?.name ?? "Unknown";
   const canProceed = step < STEPS.length - 1;
 
   return (
@@ -159,58 +140,17 @@ export function ContractWizard({
                   placeholder="X"
                 />
               </Field>
-              <Field label="Type">
+              <Field label="Contract Type" className="col-span-2">
                 <NativeSelect
                   value={draft.type}
-                  onChange={(e) => onTypeChange(e.target.value as ContractType)}
+                  onChange={(e) => onTypeChange(e.target.value)}
                 >
-                  {(Object.keys(CONTRACT_TYPE_META) as ContractType[]).map(
-                    (t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ),
-                  )}
-                </NativeSelect>
-              </Field>
-              <Field label="Sub-type">
-                <NativeSelect
-                  value={draft.subType}
-                  onChange={(e) =>
-                    patch({
-                      subType: e.target.value,
-                      financial: {
-                        ...draft.financial,
-                        contractType: e.target.value,
-                      },
-                    })
-                  }
-                >
-                  {CONTRACT_TYPE_META[draft.type].subTypes.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                  {CONTRACT_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </NativeSelect>
-              </Field>
-              <Field label="Category">
-                <NativeSelect
-                  value={draft.category}
-                  onChange={(e) =>
-                    patch({
-                      category: e.target.value as Draft["category"],
-                    })
-                  }
-                >
-                  <option value="Commodity">Commodity</option>
-                  <option value="Grid & Regulated">Grid & Regulated</option>
-                </NativeSelect>
-              </Field>
-              <Field label="Group">
-                <Input
-                  value={draft.group}
-                  onChange={(e) => patch({ group: e.target.value })}
-                />
               </Field>
               <Field label="Start Date">
                 <Input
@@ -230,124 +170,79 @@ export function ContractWizard({
           )}
 
           {step === 1 && (
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Contract Type Label" className="col-span-2">
-                <Input
-                  value={draft.financial.contractType}
-                  onChange={(e) =>
-                    patchFinancial({ contractType: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Spot Product">
-                <Input
-                  value={draft.financial.spotProduct}
-                  onChange={(e) =>
-                    patchFinancial({ spotProduct: e.target.value })
-                  }
-                  placeholder="BE - Spot or -"
-                />
-              </Field>
-              <Field label="Constant">
-                <Input
-                  value={draft.financial.constant}
-                  onChange={(e) =>
-                    patchFinancial({ constant: e.target.value })
-                  }
-                  placeholder="10.00 €/MWh"
-                />
-              </Field>
-              <Field label="Scaling">
-                <Input
-                  value={draft.financial.scaling}
-                  onChange={(e) => patchFinancial({ scaling: e.target.value })}
-                />
-              </Field>
-              <Field label="Volume">
-                <Input
-                  value={draft.volume}
-                  onChange={(e) => patch({ volume: e.target.value })}
-                  placeholder="1 MW or -"
-                />
-              </Field>
-              <Field label="Energy Direction">
-                <NativeSelect
-                  value={draft.financial.energyDirection}
-                  onChange={(e) =>
-                    patchFinancial({
-                      energyDirection: e.target
-                        .value as Draft["financial"]["energyDirection"],
-                    })
-                  }
-                >
-                  <option value="Consumption">Consumption</option>
-                  <option value="Injection">Injection</option>
-                </NativeSelect>
-              </Field>
-              <Field label="Contract Direction">
-                <NativeSelect
-                  value={draft.financial.contractDirection}
-                  onChange={(e) =>
-                    patchFinancial({
-                      contractDirection: e.target
-                        .value as Draft["financial"]["contractDirection"],
-                    })
-                  }
-                >
-                  <option value="Buy">Buy</option>
-                  <option value="Sell">Sell</option>
-                </NativeSelect>
-              </Field>
-              <div className="col-span-2 rounded-md bg-muted/50 p-3 text-sm">
-                <span className="text-muted-foreground">Preview: </span>
-                <span className="font-mono">
-                  {formatParameters(draft.financial)}
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Parameters for{" "}
+                <span className="font-medium text-foreground">
+                  {contractTypeLabel(draft.type)}
                 </span>
-              </div>
+              </p>
+              <ContractParamsFields
+                params={draft.parameters}
+                onChange={(parameters) => patch({ parameters })}
+              />
             </div>
           )}
 
           {step === 2 && (
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Start Time (inclusive)">
-                <Input
-                  value={draft.timeWindow.startTime}
-                  onChange={(e) => patchTime({ startTime: e.target.value })}
-                  placeholder="09:00:00"
-                />
-              </Field>
-              <Field label="End Time (exclusive)">
-                <Input
-                  value={draft.timeWindow.endTime}
-                  onChange={(e) => patchTime({ endTime: e.target.value })}
-                  placeholder="17:00:01"
-                />
-              </Field>
-              <Field label="Days of the Week" className="col-span-2">
-                <DayPicker
-                  days={DAYS_OF_WEEK}
-                  value={draft.timeWindow.daysOfWeek}
-                  onChange={(next) =>
-                    patchTime({
-                      daysOfWeek: next as Draft["timeWindow"]["daysOfWeek"],
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Range Inclusion">
+            <div className="space-y-4">
+              <Field label="Time Window">
                 <NativeSelect
-                  value={draft.timeWindow.rangeInclusion}
+                  value={draft.timeWindow.mode}
                   onChange={(e) =>
-                    patchTime({
-                      rangeInclusion: e.target
-                        .value as Draft["timeWindow"]["rangeInclusion"],
-                    })
+                    patchTime({ mode: e.target.value as "always" | "custom" })
                   }
                 >
-                  <option value="Within">Within</option>
-                  <option value="Outside">Outside</option>
+                  <option value="always">Always</option>
+                  <option value="custom">Custom time window</option>
                 </NativeSelect>
               </Field>
+
+              {draft.timeWindow.mode === "custom" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Start Time (inclusive)">
+                    <Input
+                      value={draft.timeWindow.startTime}
+                      onChange={(e) => patchTime({ startTime: e.target.value })}
+                      placeholder="09:00:00"
+                    />
+                  </Field>
+                  <Field label="End Time (exclusive)">
+                    <Input
+                      value={draft.timeWindow.endTime}
+                      onChange={(e) => patchTime({ endTime: e.target.value })}
+                      placeholder="17:00:01"
+                    />
+                  </Field>
+                  <Field label="Days of the Week" className="col-span-2">
+                    <DayPicker
+                      days={DAYS_OF_WEEK}
+                      value={draft.timeWindow.daysOfWeek}
+                      onChange={(next) =>
+                        patchTime({
+                          daysOfWeek:
+                            next as Draft["timeWindow"]["daysOfWeek"],
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Range Inclusion">
+                    <NativeSelect
+                      value={draft.timeWindow.rangeInclusion}
+                      onChange={(e) =>
+                        patchTime({
+                          rangeInclusion: e.target.value as
+                            | "Within"
+                            | "Outside",
+                        })
+                      }
+                    >
+                      <option value="Within">Within</option>
+                      <option value="Outside">Outside</option>
+                    </NativeSelect>
+                  </Field>
+                </div>
+              )}
             </div>
           )}
 
@@ -357,50 +252,41 @@ export function ContractWizard({
                 <ReviewRow label="Contract Name" value={draft.name || "-"} />
                 <ReviewRow label="Asset" value={assetName} />
                 <ReviewRow label="Supplier" value={draft.supplier || "-"} />
-                <ReviewRow label="Category" value={draft.category} />
-                <ReviewRow
-                  label="Start Date"
-                  value={formatDate(draft.startDate)}
-                />
+                <ReviewRow label="Type" value={contractTypeLabel(draft.type)} />
+                <ReviewRow label="Category" value={contractCategory(draft.type)} />
+                <ReviewRow label="Start Date" value={formatDate(draft.startDate)} />
                 <ReviewRow label="End Date" value={formatDate(draft.endDate)} />
               </ReviewCard>
-              <ReviewCard title="Financial Parameters">
-                <ReviewRow
-                  label="Contract Type"
-                  value={draft.financial.contractType}
-                />
-                <ReviewRow
-                  label="Spot Product"
-                  value={draft.financial.spotProduct}
-                />
-                <ReviewRow label="Constant" value={draft.financial.constant} />
-                <ReviewRow label="Scaling" value={draft.financial.scaling} />
-                <ReviewRow
-                  label="Energy Direction"
-                  value={draft.financial.energyDirection}
-                />
-                <ReviewRow
-                  label="Contract Direction"
-                  value={draft.financial.contractDirection}
-                />
+              <ReviewCard title="Parameters">
+                {paramSummaryRows(draft.parameters).map((r, i) => (
+                  <ReviewRow key={i} label={r.label} value={r.value} />
+                ))}
               </ReviewCard>
               <ReviewCard title="Time Configuration">
                 <ReviewRow
-                  label="Start Time (inclusive)"
-                  value={draft.timeWindow.startTime}
+                  label="Time Window"
+                  value={draft.timeWindow.mode === "always" ? "Always" : "Custom"}
                 />
-                <ReviewRow
-                  label="End Time (exclusive)"
-                  value={draft.timeWindow.endTime}
-                />
-                <ReviewRow
-                  label="Days of the Week"
-                  value={draft.timeWindow.daysOfWeek.join(", ") || "-"}
-                />
-                <ReviewRow
-                  label="Range Inclusion"
-                  value={draft.timeWindow.rangeInclusion}
-                />
+                {draft.timeWindow.mode === "custom" && (
+                  <>
+                    <ReviewRow
+                      label="Start Time (inclusive)"
+                      value={draft.timeWindow.startTime}
+                    />
+                    <ReviewRow
+                      label="End Time (exclusive)"
+                      value={draft.timeWindow.endTime}
+                    />
+                    <ReviewRow
+                      label="Days of the Week"
+                      value={draft.timeWindow.daysOfWeek.join(", ") || "-"}
+                    />
+                    <ReviewRow
+                      label="Range Inclusion"
+                      value={draft.timeWindow.rangeInclusion}
+                    />
+                  </>
+                )}
               </ReviewCard>
             </div>
           )}

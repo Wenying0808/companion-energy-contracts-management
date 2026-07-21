@@ -18,9 +18,10 @@ import { AssetDetailPanel } from "@/components/control-room/asset-detail-panel";
 import { AssetWizard } from "@/components/assets/asset-wizard";
 import { ContractWizard } from "@/components/contracts/contract-wizard";
 import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
+import { ContractDraftReviewPanel } from "@/components/contracts/contract-draft-review-panel";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
-import type { Asset } from "@/lib/types";
+import type { Asset, DraftContract } from "@/lib/types";
 
 const nodeTypes = { asset: AssetNode };
 
@@ -44,6 +45,14 @@ function ControlRoomInner() {
     setOpen: setUploadOpen,
     openDeferred: openUpload,
   } = useDeferredOpen();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [drafts, setDrafts] = useState<DraftContract[]>([]);
+
+  function handleDrafts(d: DraftContract[]) {
+    setDrafts(d);
+    setUploadOpen(false);
+    setReviewOpen(true);
+  }
 
   const selectedAsset = assets.find((a) => a.id === selectedAssetId) ?? null;
 
@@ -149,6 +158,14 @@ function ControlRoomInner() {
           open
           onOpenChange={setUploadOpen}
           defaultAssetId={selectedAsset?.id}
+          onDrafts={handleDrafts}
+        />
+      )}
+      {reviewOpen && (
+        <ContractDraftReviewPanel
+          open
+          onOpenChange={setReviewOpen}
+          drafts={drafts}
         />
       )}
     </div>

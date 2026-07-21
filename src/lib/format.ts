@@ -1,29 +1,61 @@
-import { DAYS_OF_WEEK, type Contract } from "./types";
+import { DAYS_OF_WEEK, type ContractParameters, type ContractTimeWindow } from "./types";
 
-// Human-readable time-window summary for the contracts table ("Always" vs a
-// weekday/time range).
-export function formatTimeWindow(c: Contract): string {
-  const allDays = DAYS_OF_WEEK.every((d) => c.timeWindow.daysOfWeek.includes(d));
-  const fullDay =
-    c.timeWindow.startTime === "00:00:00" &&
-    (c.timeWindow.endTime === "23:59:59" || c.timeWindow.endTime === "24:00:00");
-  if (allDays && fullDay) return "Always";
-  if (c.timeWindow.daysOfWeek.length === 0) return "Always";
-  return c.timeWindow.daysOfWeek.join(", ");
+// Human-readable time-window summary for the contracts table.
+export function formatTimeWindow(tw: ContractTimeWindow): string {
+  if (tw.mode === "always") return "Always";
+  if (tw.daysOfWeek.length === 0) return "Custom";
+  const allDays = DAYS_OF_WEEK.every((d) => tw.daysOfWeek.includes(d));
+  if (allDays) return `${tw.startTime}–${tw.endTime}`;
+  return tw.daysOfWeek.join(", ");
 }
 
-// Derive the pill text shown in the Parameters column from the financial fields.
-export function formatParameters(f: {
-  spotProduct: string;
-  constant: string;
-  scaling: string;
-}): string {
-  const hasSpot = f.spotProduct && f.spotProduct !== "-";
-  if (hasSpot) {
-    const product = f.spotProduct.replace(/\s*-\s*/, " ");
-    return `${f.scaling} * ${product} + ${f.constant}`;
+// Derive the pill text shown in the Parameters column from the typed params.
+export function describeParameters(p: ContractParameters): string {
+  switch (p.kind) {
+    case "dayAheadSpot": {
+      const product = p.spotProduct.replace(/\s*-\s*/, " ").trim();
+      const scale = p.scaling ? `${p.scaling} * ` : "";
+      const constant = p.constant ? ` + ${p.constant}` : "";
+      return product ? `${scale}${product}${constant}` : p.constant || "-";
+    }
+    case "averageDayAheadSpot": {
+      const product = p.spotProduct.replace(/\s*-\s*/, " ").trim();
+      const scale = p.scaling ? `${p.scaling} * ` : "";
+      const constant = p.constant ? ` + ${p.constant}` : "";
+      const base = product ? `${scale}avg(${product})${constant}` : p.constant || "-";
+      return `${base} (${p.period})`;
+    }
+    case "accessPower":
+      return p.regularCost
+        ? `${p.regularCost}${p.accessCapacity ? ` · ${p.accessCapacity} kW` : ""}`
+        : "-";
+    case "fixedHedge":
+      return `${p.price || "-"} (${p.hedgeBasis} hedge)`;
+    case "fixedCost":
+      return p.costPerYear || "-";
+    case "energyTax":
+      return p.price || "-";
+    case "ppa":
+      return `${p.price || "-"} · ${p.ppaType}`;
+    case "generic":
+      if (p.fields.length === 0) return "-";
+      return p.fields
+        .slice(0, 2)
+        .map((f) => `${f.label}: ${f.value}`)
+        .join(", ");
   }
-  return f.constant || "-";
+}
+
+// Group column — surfaces the energy direction where the type has one.
+export function contractGroup(p: ContractParameters): string {
+  if ("energyDirection" in p) return p.energyDirection;
+  return "-";
+}
+
+// Volume column — only the hedge carries a unit today.
+export function contractVolume(p: ContractParameters): string {
+  if (p.kind === "fixedHedge") return `1 ${p.unit}`;
+  return "-";
 }
 
 export function formatDate(iso: string): string {

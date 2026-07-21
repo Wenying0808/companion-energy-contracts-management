@@ -22,11 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ContractWizard } from "@/components/contracts/contract-wizard";
 import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
+import { ContractDraftReviewPanel } from "@/components/contracts/contract-draft-review-panel";
 import { AddContractMenu } from "@/components/contracts/add-contract-menu";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
-import { formatDate, formatTimeWindow } from "@/lib/format";
-import type { Contract } from "@/lib/types";
+import {
+  formatDate,
+  formatTimeWindow,
+  describeParameters,
+  contractGroup,
+  contractVolume,
+} from "@/lib/format";
+import { contractTypeLabel, contractCategory } from "@/lib/contract-types";
+import type { Contract, DraftContract } from "@/lib/types";
 
 export default function ContractsPage() {
   const contracts = useAppStore((s) => s.contracts);
@@ -41,7 +49,15 @@ export default function ContractsPage() {
     setOpen: setUploadOpen,
     openDeferred: openUpload,
   } = useDeferredOpen();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [drafts, setDrafts] = useState<DraftContract[]>([]);
   const [editing, setEditing] = useState<Contract | null>(null);
+
+  function handleDrafts(d: DraftContract[]) {
+    setDrafts(d);
+    setUploadOpen(false);
+    setReviewOpen(true);
+  }
 
   const addContractTooltip =
     "Contracts define how energy is priced and settled for an asset — supply (PPA), taxes & levies, hedges and spot.";
@@ -146,23 +162,18 @@ export default function ContractsPage() {
                     )}
                   </TableCell>
                   <TableCell>{assetName(c.assetId)}</TableCell>
-                  <TableCell>{c.group}</TableCell>
-                  <TableCell>{c.category}</TableCell>
-                  <TableCell>
-                    <div>{c.type}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {c.subType}
-                    </div>
-                  </TableCell>
+                  <TableCell>{contractGroup(c.parameters)}</TableCell>
+                  <TableCell>{contractCategory(c.type)}</TableCell>
+                  <TableCell>{contractTypeLabel(c.type)}</TableCell>
                   <TableCell>{formatDate(c.startDate)}</TableCell>
                   <TableCell>{formatDate(c.endDate)}</TableCell>
                   <TableCell className="max-w-40 truncate">
-                    {formatTimeWindow(c)}
+                    {formatTimeWindow(c.timeWindow)}
                   </TableCell>
-                  <TableCell>{c.volume}</TableCell>
+                  <TableCell>{contractVolume(c.parameters)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="font-mono font-normal">
-                      {c.parametersDisplay}
+                      {describeParameters(c.parameters)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -219,7 +230,18 @@ export default function ContractsPage() {
         />
       )}
       {uploadOpen && (
-        <ContractUploadPanel open onOpenChange={setUploadOpen} />
+        <ContractUploadPanel
+          open
+          onOpenChange={setUploadOpen}
+          onDrafts={handleDrafts}
+        />
+      )}
+      {reviewOpen && (
+        <ContractDraftReviewPanel
+          open
+          onOpenChange={setReviewOpen}
+          drafts={drafts}
+        />
       )}
     </div>
   );
