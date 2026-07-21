@@ -76,14 +76,44 @@ the PDFs natively (no OCR/parse library).
 
 **Setup (required to use extraction):**
 
+1. Create an Anthropic API key at [console.anthropic.com](https://console.anthropic.com/).
+2. Copy the env template and paste your key:
+
 ```bash
-cp .env.example .env.local     # then paste your key
-# .env.local:  ANTHROPIC_API_KEY=sk-ant-...
+cp .env.example .env.local
+# Edit .env.local:
+# ANTHROPIC_API_KEY=sk-ant-...
+```
+
+3. Restart the dev server so Next.js picks up the env var:
+
+```bash
 npm run dev
 ```
 
 Your Anthropic account needs available credits, or the API returns a
 "credit balance too low" error (surfaced in the upload panel).
+
+**Try it with sample PDFs** (`sample-contracts/`):
+
+Synthetic one-page contracts cover every dedicated parameter form, plus a
+multi-contract bundle:
+
+| File | What it exercises |
+| --- | --- |
+| `01-day-ahead-spot.pdf` | Day-Ahead Spot |
+| `02-fixed-hedge.pdf` | Fixed Hedge |
+| `03-fixed-cost.pdf` | Fixed Cost |
+| `04-energy-tax.pdf` | Energy Tax |
+| `05-ppa.pdf` | PPA |
+| `06-bundle-spot-and-tax.pdf` | Two contracts in one PDF (segmentation) |
+
+1. Open **Contracts** (or an asset detail panel) → **Add Contract** →
+   **Extract from PDF (AI)**.
+2. Select an asset, then upload one or more files from `sample-contracts/`.
+3. Review the drafts (edit fields if needed), accept, and **Add N contracts**.
+
+See `sample-contracts/README.md` for expected parameters per file.
 
 **Pipeline** (`src/lib/ai/*`, `src/app/api/extract-contracts/route.ts`):
 
