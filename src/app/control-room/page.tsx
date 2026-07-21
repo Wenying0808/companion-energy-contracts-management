@@ -17,6 +17,7 @@ import { AssetNode, type AssetNodeData } from "@/components/control-room/asset-n
 import { AssetDetailPanel } from "@/components/control-room/asset-detail-panel";
 import { AssetWizard } from "@/components/assets/asset-wizard";
 import { ContractWizard } from "@/components/contracts/contract-wizard";
+import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
 import type { Asset } from "@/lib/types";
@@ -37,6 +38,11 @@ function ControlRoomInner() {
     open: contractWizardOpen,
     setOpen: setContractWizardOpen,
     openDeferred: openContractWizard,
+  } = useDeferredOpen();
+  const {
+    open: uploadOpen,
+    setOpen: setUploadOpen,
+    openDeferred: openUpload,
   } = useDeferredOpen();
 
   const selectedAsset = assets.find((a) => a.id === selectedAssetId) ?? null;
@@ -119,6 +125,7 @@ function ControlRoomInner() {
           asset={selectedAsset}
           onClose={() => setSelectedAssetId(null)}
           onAddContract={() => openContractWizard()}
+          onAiExtract={() => openUpload()}
           onEdit={openEditAsset}
         />
       )}
@@ -134,6 +141,13 @@ function ControlRoomInner() {
         <ContractWizard
           open
           onOpenChange={setContractWizardOpen}
+          defaultAssetId={selectedAsset?.id}
+        />
+      )}
+      {uploadOpen && (
+        <ContractUploadPanel
+          open
+          onOpenChange={setUploadOpen}
           defaultAssetId={selectedAsset?.id}
         />
       )}

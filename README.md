@@ -59,11 +59,30 @@ unmount, which doesn't fire reliably under Tailwind v4 and leaves the dialog stu
 open. `SidePanel` mounts/unmounts purely on the `open` boolean, so open/close is
 deterministic.
 
+## Add Contract flows
+
+Both the Contracts toolbar/empty-state and the asset detail panel use
+`AddContractMenu`, a dropdown with two options (plus a tooltip explaining why
+contracts matter for an asset):
+
+- **Add manually** → the 4-step `ContractWizard`.
+- **Extract from PDF (AI)** → `ContractUploadPanel`, a multi-file PDF uploader
+  (drag & drop or browse) with an asset selector.
+
+### Where the AI agent plugs in
+
+`ContractUploadPanel` exposes an `onExtract(files: File[], assetId: string)`
+callback (see `src/components/contracts/contract-upload-panel.tsx`). Today it just
+shows a "Ready for AI extraction" placeholder. To implement extraction: send the
+files to your agent, get back draft `Contract` objects, and open them in the
+`ContractWizard` (its Review step already renders a full contract) for the user to
+confirm before `addContract`.
+
 ## Roadmap (not yet built)
 
-The data model and canvas are structured so these drop in later:
+The data model, upload panel, and canvas are structured so these drop in later:
 
-1. Upload signed contract PDFs.
-2. Extract fields via an AI agent → draft a `Contract`.
+1. ✅ Upload signed contract PDFs (done — see above).
+2. Extract fields via an AI agent → draft a `Contract` (wire `onExtract`).
 3. User reviews the draft (reuses the contract wizard's Review step).
 4. Visualize relationships between contracts on the canvas.

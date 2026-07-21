@@ -2,7 +2,6 @@
 
 import {
   X,
-  Plus,
   ChevronLeft,
   ChevronRight,
   Calendar,
@@ -11,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { AddContractMenu } from "@/components/contracts/add-contract-menu";
 import type { Asset } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 
@@ -18,11 +18,13 @@ export function AssetDetailPanel({
   asset,
   onClose,
   onAddContract,
+  onAiExtract,
   onEdit,
 }: {
   asset: Asset;
   onClose: () => void;
   onAddContract: () => void;
+  onAiExtract: () => void;
   onEdit: () => void;
 }) {
   const contracts = useAppStore((s) => s.contracts);
@@ -48,12 +50,17 @@ export function AssetDetailPanel({
 
       {/* Actions */}
       <div className="flex items-center gap-2 border-b p-4">
-        <Button size="sm" onClick={onAddContract}>
-          <Plus className="size-4" /> Add Contract
-        </Button>
         <Button size="sm" variant="outline" onClick={onEdit}>
           Edit Asset
         </Button>
+        <AddContractMenu
+          size="sm"
+          label="Add Contracts"
+          align="start"
+          tooltip={`Link supply, tax, hedge and spot contracts to ${asset.name} so its energy costs and volumes can be calculated.`}
+          onManual={onAddContract}
+          onAiExtract={onAiExtract}
+        />
         {contractCount > 0 && (
           <span className="ml-auto text-xs text-muted-foreground">
             {contractCount} contract{contractCount > 1 ? "s" : ""}
@@ -68,7 +75,7 @@ export function AssetDetailPanel({
             <ChevronLeft className="size-4" />
           </Button>
           <span className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="size-4" /> Jul 19, 2026 - Jul 21, 2026
+            <Calendar className="size-4" /> Jul 27, 2026 - Jul 31, 2026
           </span>
           <Button variant="ghost" size="icon" className="size-7">
             <ChevronRight className="size-4" />

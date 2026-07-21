@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Filter, Search, MoreVertical, FileText } from "lucide-react";
+import { Filter, Search, MoreVertical, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ContractWizard } from "@/components/contracts/contract-wizard";
+import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
+import { AddContractMenu } from "@/components/contracts/add-contract-menu";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
 import { formatDate, formatTimeWindow } from "@/lib/format";
@@ -34,7 +36,15 @@ export default function ContractsPage() {
   const [query, setQuery] = useState("");
   const { open: wizardOpen, setOpen: setWizardOpen, openDeferred } =
     useDeferredOpen();
+  const {
+    open: uploadOpen,
+    setOpen: setUploadOpen,
+    openDeferred: openUpload,
+  } = useDeferredOpen();
   const [editing, setEditing] = useState<Contract | null>(null);
+
+  const addContractTooltip =
+    "Contracts define how energy is priced and settled for an asset — supply (PPA), taxes & levies, hedges and spot.";
 
   const assetName = (id: string) =>
     assets.find((a) => a.id === id)?.name ?? "-";
@@ -76,9 +86,11 @@ export default function ContractsPage() {
           <Filter className="size-4" />
         </Button>
         <div className="ml-auto">
-          <Button onClick={openNew}>
-            <Plus className="size-4" /> Add Contract
-          </Button>
+          <AddContractMenu
+            tooltip={addContractTooltip}
+            onManual={openNew}
+            onAiExtract={() => openUpload()}
+          />
         </div>
       </div>
 
@@ -111,9 +123,14 @@ export default function ContractsPage() {
                       Add a contract to get started. Contracts you create will
                       appear here.
                     </p>
-                    <Button className="mt-2" onClick={openNew}>
-                      <Plus className="size-4" /> Add Contract
-                    </Button>
+                    <div className="mt-2">
+                      <AddContractMenu
+                        align="start"
+                        tooltip={addContractTooltip}
+                        onManual={openNew}
+                        onAiExtract={() => openUpload()}
+                      />
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
@@ -200,6 +217,9 @@ export default function ContractsPage() {
           onOpenChange={setWizardOpen}
           editing={editing}
         />
+      )}
+      {uploadOpen && (
+        <ContractUploadPanel open onOpenChange={setUploadOpen} />
       )}
     </div>
   );
