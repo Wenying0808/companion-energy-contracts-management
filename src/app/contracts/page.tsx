@@ -2,25 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MoreVertical, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, FileText, LayoutList, Network } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/wizard/fields";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ContractsTable } from "@/components/contracts/contracts-table";
+import { ContractGraph } from "@/components/contracts/contract-graph";
 import { ContractWizard } from "@/components/contracts/contract-wizard";
 import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
 import { ContractDraftReviewPanel } from "@/components/contracts/contract-draft-review-panel";
@@ -33,15 +19,10 @@ import {
 } from "@/components/contracts/contract-filters";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
-import {
-  formatDate,
-  formatTimeWindow,
-  describeParameters,
-  contractGroup,
-  contractVolume,
-} from "@/lib/format";
-import { contractTypeLabel, contractCategory } from "@/lib/contract-types";
+import { cn } from "@/lib/utils";
 import type { Asset, Contract, DraftContract } from "@/lib/types";
+
+type ContractView = "table" | "graph";
 
 function assetFilterFromParam(
   param: string | null,
@@ -82,6 +63,7 @@ function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [drafts, setDrafts] = useState<DraftContract[]>([]);
   const [editing, setEditing] = useState<Contract | null>(null);
+  const [view, setView] = useState<ContractView>("table");
 
   function handleDrafts(d: DraftContract[]) {
     setDrafts(d);
@@ -91,9 +73,6 @@ function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
 
   const addContractTooltip =
     "Contracts define how energy is priced and settled for an asset — supply (PPA), taxes & levies, hedges and spot.";
-
-  const assetName = (id: string) =>
-    assets.find((a) => a.id === id)?.name ?? "-";
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -114,6 +93,28 @@ function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b p-4">
+        <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+          {([
+            { key: "table", label: "Table", icon: LayoutList },
+            { key: "graph", label: "Graph", icon: Network },
+          ] as const).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              aria-pressed={view === key}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                view === key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="size-4" />
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="relative w-80 max-w-full">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -134,7 +135,8 @@ function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
           value={filters}
           onChange={setFilters}
         />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+        
           <AddContractMenu
             tooltip={addContractTooltip}
             onManual={openNew}
@@ -143,117 +145,55 @@ function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Content */}
       <div className="min-h-0 flex-1 overflow-auto">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background">
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Asset</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead>Time Window</TableHead>
-              <TableHead>Volume</TableHead>
-              <TableHead>Parameters</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={11}>
-                  <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-                    <FileText className="size-8 text-muted-foreground" />
-                    <p className="text-sm font-medium">No contracts yet</p>
-                    <p className="max-w-sm text-sm text-muted-foreground">
-                      Add a contract to get started. Contracts you create will
-                      appear here.
-                    </p>
-                    <div className="mt-2">
-                      <AddContractMenu
-                        align="start"
-                        tooltip={addContractTooltip}
-                        onManual={openNew}
-                        onAiExtract={() => openUpload()}
-                      />
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <div className="font-medium">{c.name}</div>
-                    {c.subtitle && (
-                      <div className="text-xs text-muted-foreground">
-                        {c.subtitle}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{assetName(c.assetId)}</TableCell>
-                  <TableCell>{contractGroup(c.parameters)}</TableCell>
-                  <TableCell>{contractCategory(c.type)}</TableCell>
-                  <TableCell>{contractTypeLabel(c.type)}</TableCell>
-                  <TableCell>{formatDate(c.startDate)}</TableCell>
-                  <TableCell>{formatDate(c.endDate)}</TableCell>
-                  <TableCell className="max-w-40 truncate">
-                    {formatTimeWindow(c.timeWindow)}
-                  </TableCell>
-                  <TableCell>{contractVolume(c.parameters)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono font-normal">
-                      {describeParameters(c.parameters)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="icon" aria-label="Row actions" />
-                        }
-                      >
-                        <MoreVertical className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(c)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => removeContract(c.id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        {view === "table" ? (
+          <ContractsTable
+            contracts={filtered}
+            assets={assets}
+            onEdit={openEdit}
+            onRemove={removeContract}
+            emptyState={
+              <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
+                <FileText className="size-8 text-muted-foreground" />
+                <p className="text-sm font-medium">No contracts yet</p>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Add a contract to get started. Contracts you create will appear here.
+                </p>
+                <div className="mt-2">
+                  <AddContractMenu
+                    align="start"
+                    tooltip={addContractTooltip}
+                    onManual={openNew}
+                    onAiExtract={() => openUpload()}
+                  />
+                </div>
+              </div>
+            }
+          />
+        ) : (
+          <ContractGraph contracts={filtered} assets={assets} />
+        )}
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
-        <span>
-          Showing {filtered.length === 0 ? 0 : 1}-{filtered.length} of{" "}
-          {filtered.length}
-        </span>
-        <div className="flex items-center gap-2">
-          <span>Rows per page:</span>
-          <NativeSelect className="w-20" defaultValue="50">
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-          </NativeSelect>
-          <span className="ml-2">1 of 1</span>
+      {/* Footer (table view only) */}
+      {view === "table" && (
+        <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
+          <span>
+            Showing {filtered.length === 0 ? 0 : 1}-{filtered.length} of{" "}
+            {filtered.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <span>Rows per page:</span>
+            <NativeSelect className="w-20" defaultValue="50">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </NativeSelect>
+            <span className="ml-2">1 of 1</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {wizardOpen && (
         <ContractWizard
