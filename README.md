@@ -144,11 +144,3 @@ generic key/value parameter set. Add a dedicated form by giving a type a new
 `paramsKind` and extending `ContractParameters`, `ContractParamsFields`, and
 `src/lib/ai/schemas.ts`.
 
-## Roadmap
-
-1. ✅ Upload signed contract PDFs.
-2. ✅ Extract fields via an AI agent → draft contracts.
-3. ✅ User reviews/edits drafts, then accepts.
-4. Visualize relationships between contracts on the canvas.
-5. Later: persistence (in-memory today), dedicated forms for the remaining types,
-   per-field confidence highlighting, a real vector knowledge base.

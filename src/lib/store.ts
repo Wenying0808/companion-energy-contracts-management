@@ -30,6 +30,25 @@ const GRID_CONNECTION: Asset = {
   position: { x: 120, y: 220 },
 };
 
+const GRID_CONNECTION_2: Asset = {
+  id: "asset-grid-2",
+  name: "Grid Connection 2",
+  type: "Grid Connection",
+  location: "Nijverheidskaai 3, 1070 Anderlecht, Brussels, Belgium",
+  dso: "Sibelga",
+  dsoRegion: "Brussels",
+  dsoConnectionType: "-",
+  physicalPowerInjection: "-",
+  physicalPowerConsumption: "-",
+  nominate: false,
+  integration: {
+    apiIntegration: true,
+    dataGranularity: "15 minutes",
+    integrationFrequency: "batch",
+  },
+  position: { x: 120, y: 480 },
+};
+
 // --- Seed contracts ----------------------------------------------------------
 // Illustrative portfolio on the Grid Connection asset, dated around 2026-07-27
 // so the Graph view demonstrates every state: a deliberate overnight coverage
@@ -185,7 +204,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   // Seeded with the prefilled Grid Connection asset and an illustrative
   // contract portfolio (see SEED_CONTRACTS).
-  assets: [GRID_CONNECTION],
+  assets: [GRID_CONNECTION, GRID_CONNECTION_2],
   contracts: SEED_CONTRACTS,
   addAsset: (asset) => set((s) => ({ assets: [...s.assets, asset] })),
   updateAsset: (id, patch) =>
