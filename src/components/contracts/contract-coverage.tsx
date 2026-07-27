@@ -11,6 +11,8 @@ import {
   type CoverageStatus,
 } from "@/lib/coverage";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
+import { ContractVolumeChart } from "./contract-volume-chart";
 import { cn } from "@/lib/utils";
 
 const STATUS_META: Record<
@@ -64,7 +66,8 @@ export function ContractCoverage({
           Each cell is one hour of a typical week (as of {date}), coloured by its most
           significant state — overlap, then fixed, then floating, then gap. So an hour with
           two hedges and spot reads as an overlap; hover any cell to see every contract
-          covering it. Coverage is presence-based — volumes aren&apos;t modelled yet.
+          covering it. Coverage here is presence-based; the volume view below weights the
+          same hours by an illustrative consumption profile.
         </p>
       </div>
 
@@ -168,6 +171,11 @@ export function ContractCoverage({
           </div>
         ))}
       </div>
+
+      <Separator />
+
+      {/* Volume-weighted view */}
+      <ContractVolumeChart contracts={contracts} date={date} />
     </div>
   );
 }
