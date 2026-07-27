@@ -17,7 +17,7 @@ export interface ContractTypeDef {
   description: string;
 }
 
-// The 21 contract types (the source <select> lists 21; the brief said "19").
+// The 21 contract types).
 export const CONTRACT_TYPES: ContractTypeDef[] = [
   { value: "access power", label: "Access Power", defaultCategory: "Grid & Regulated", paramsKind: "accessPower", description: "Charge for contracted grid access capacity: an optional access capacity in kW and a regular cost per kW." },
   { value: "variable", label: "Average Day-Ahead Spot Contract", defaultCategory: "Commodity", paramsKind: "averageDayAheadSpot", description: "Energy settled at the average day-ahead spot price over a period (daily, weekly, monthly, quarterly or annually), optionally scaled and offset by a constant." },
@@ -39,7 +39,7 @@ export const CONTRACT_TYPES: ContractTypeDef[] = [
   { value: "spot", label: "Spot Contract", defaultCategory: "Commodity", paramsKind: "generic", description: "Generic spot-market settled contract." },
   { value: "supplier markup", label: "Supplier Markup", defaultCategory: "Commodity", paramsKind: "generic", description: "Supplier markup added on top of energy price." },
   { value: "tiered energy tax", label: "Tiered Energy Tax", defaultCategory: "Grid & Regulated", paramsKind: "generic", description: "Energy tax with volume-based tiers." },
-  { value: "virtual PPA", label: "Virtual Power Purchase Agreement (PPA)", defaultCategory: "Commodity", paramsKind: "generic", description: "Financial (virtual) PPA settled as a contract for difference." },
+  { value: "virtual PPA", label: "Virtual Power Purchase Agreement (PPA)", defaultCategory: "Commodity", paramsKind: "ppa", description: "Financial (virtual) PPA settled as a contract for difference at a fixed €/MWh, pay-as-consumed or pay-as-produced, onsite or offsite." },
 ];
 
 const BY_VALUE = new Map(CONTRACT_TYPES.map((t) => [t.value, t]));

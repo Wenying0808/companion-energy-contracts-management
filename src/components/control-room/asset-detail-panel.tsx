@@ -7,6 +7,7 @@ import {
   Calendar,
   Gauge,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -27,6 +28,7 @@ export function AssetDetailPanel({
   onAiExtract: () => void;
   onEdit: () => void;
 }) {
+  const router = useRouter();
   const contracts = useAppStore((s) => s.contracts);
   const contractCount = contracts.filter((c) => c.assetId === asset.id).length;
 
@@ -62,9 +64,18 @@ export function AssetDetailPanel({
           onAiExtract={onAiExtract}
         />
         {contractCount > 0 && (
-          <span className="ml-auto text-xs text-muted-foreground">
-            {contractCount} contract{contractCount > 1 ? "s" : ""}
-          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            onClick={() =>
+              router.push(
+                `/contracts?asset=${encodeURIComponent(asset.id)}`,
+              )
+            }
+          >
+            View {contractCount} Contract{contractCount === 1 ? "" : "s"}
+          </Button>
         )}
       </div>
 

@@ -6,6 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Field, NativeSelect } from "@/components/wizard/fields";
 import type { ContractParameters } from "@/lib/types";
 
+function UnitInput({
+  value,
+  onChange,
+  placeholder,
+  unit,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  unit: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="pr-16"
+      />
+      <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
+        {unit}
+      </span>
+    </div>
+  );
+}
+
 // Editable, per-type contract parameter fields. Shared by the contract wizard
 // and the draft-review panel so both render identical inputs.
 export function ContractParamsFields({
@@ -38,10 +64,11 @@ export function ContractParamsFields({
             />
           </Field>
           <Field label="Constant (optional)">
-            <Input
+            <UnitInput
               value={params.constant}
-              onChange={(e) => onChange({ ...params, constant: e.target.value })}
-              placeholder="10.00 €/MWh"
+              onChange={(constant) => onChange({ ...params, constant })}
+              placeholder="10.00"
+              unit="€/MWh"
             />
           </Field>
           <Field label="Scaling (optional)">
@@ -125,10 +152,11 @@ export function ContractParamsFields({
             />
           </Field>
           <Field label="Constant (optional)">
-            <Input
+            <UnitInput
               value={params.constant}
-              onChange={(e) => onChange({ ...params, constant: e.target.value })}
-              placeholder="10.00 €/MWh"
+              onChange={(constant) => onChange({ ...params, constant })}
+              placeholder="10.00"
+              unit="€/MWh"
             />
           </Field>
           <Field label="Scaling (optional)">
@@ -176,20 +204,20 @@ export function ContractParamsFields({
     case "accessPower":
       return (
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Access Capacity (kW, optional)">
-            <Input
+          <Field label="Access Capacity (optional)">
+            <UnitInput
               value={params.accessCapacity}
-              onChange={(e) =>
-                onChange({ ...params, accessCapacity: e.target.value })
-              }
-              placeholder="e.g. 250"
+              onChange={(accessCapacity) => onChange({ ...params, accessCapacity })}
+              placeholder="250"
+              unit="kW"
             />
           </Field>
-          <Field label="Regular Cost (€/kW)">
-            <Input
+          <Field label="Regular Cost">
+            <UnitInput
               value={params.regularCost}
-              onChange={(e) => onChange({ ...params, regularCost: e.target.value })}
-              placeholder="e.g. 12.00 €/kW"
+              onChange={(regularCost) => onChange({ ...params, regularCost })}
+              placeholder="12.00"
+              unit="€/kW"
             />
           </Field>
         </div>
@@ -225,11 +253,12 @@ export function ContractParamsFields({
               <option value="kWh">kWh</option>
             </NativeSelect>
           </Field>
-          <Field label="Price (€/MWh)">
-            <Input
+          <Field label="Price">
+            <UnitInput
               value={params.price}
-              onChange={(e) => onChange({ ...params, price: e.target.value })}
-              placeholder="5.00 €/MWh"
+              onChange={(price) => onChange({ ...params, price })}
+              placeholder="5.00"
+              unit="€/MWh"
             />
           </Field>
           <Field label="Energy Direction">
@@ -252,11 +281,12 @@ export function ContractParamsFields({
     case "fixedCost":
       return (
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Cost (€/year)">
-            <Input
+          <Field label="Cost">
+            <UnitInput
               value={params.costPerYear}
-              onChange={(e) => onChange({ ...params, costPerYear: e.target.value })}
-              placeholder="€ 1,000.00"
+              onChange={(costPerYear) => onChange({ ...params, costPerYear })}
+              placeholder="1,000.00"
+              unit="€/year"
             />
           </Field>
         </div>
@@ -265,11 +295,12 @@ export function ContractParamsFields({
     case "energyTax":
       return (
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Price (€/MWh)">
-            <Input
+          <Field label="Price">
+            <UnitInput
               value={params.price}
-              onChange={(e) => onChange({ ...params, price: e.target.value })}
-              placeholder="1.00 €/MWh"
+              onChange={(price) => onChange({ ...params, price })}
+              placeholder="1.00"
+              unit="€/MWh"
             />
           </Field>
           <Field label="Energy Direction">
@@ -322,11 +353,12 @@ export function ContractParamsFields({
               <option value="offsite">Offsite</option>
             </NativeSelect>
           </Field>
-          <Field label="Price (€/MWh)">
-            <Input
+          <Field label="Price">
+            <UnitInput
               value={params.price}
-              onChange={(e) => onChange({ ...params, price: e.target.value })}
-              placeholder="45.00 €/MWh"
+              onChange={(price) => onChange({ ...params, price })}
+              placeholder="45.00"
+              unit="€/MWh"
             />
           </Field>
           <Field label="Producing Asset">

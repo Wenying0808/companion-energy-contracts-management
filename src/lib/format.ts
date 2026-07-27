@@ -46,9 +46,11 @@ export function describeParameters(p: ContractParameters): string {
   }
 }
 
-// Group column — surfaces the energy direction where the type has one.
+// Group column — energy direction when present; Fixed Cost and PPA are always
+// Consumption even though those param shapes have no energyDirection field.
 export function contractGroup(p: ContractParameters): string {
   if ("energyDirection" in p) return p.energyDirection;
+  if (p.kind === "fixedCost" || p.kind === "ppa") return "Consumption";
   return "-";
 }
 

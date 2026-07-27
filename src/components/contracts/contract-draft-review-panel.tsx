@@ -148,7 +148,7 @@ export function ContractDraftReviewPanel({
                 variant={current.accepted ? "outline" : "default"}
                 onClick={() => update({ accepted: !current.accepted })}
               >
-                {current.accepted ? "Skip this one" : "Include"}
+                {current.accepted ? "Skip this one" : "Approve"}
               </Button>
             </div>
 

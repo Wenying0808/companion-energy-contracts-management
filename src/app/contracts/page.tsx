@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Filter, Search, MoreVertical, FileText } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Search, MoreVertical, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,12 @@ import { ContractWizard } from "@/components/contracts/contract-wizard";
 import { ContractUploadPanel } from "@/components/contracts/contract-upload-panel";
 import { ContractDraftReviewPanel } from "@/components/contracts/contract-draft-review-panel";
 import { AddContractMenu } from "@/components/contracts/add-contract-menu";
+import {
+  applyContractFilters,
+  ContractFilters,
+  EMPTY_FILTERS,
+  type ContractFiltersState,
+} from "@/components/contracts/contract-filters";
 import { useAppStore } from "@/lib/store";
 import { useDeferredOpen } from "@/lib/use-deferred-open";
 import {
@@ -34,14 +41,37 @@ import {
   contractVolume,
 } from "@/lib/format";
 import { contractTypeLabel, contractCategory } from "@/lib/contract-types";
-import type { Contract, DraftContract } from "@/lib/types";
+import type { Asset, Contract, DraftContract } from "@/lib/types";
+
+function assetFilterFromParam(
+  param: string | null,
+  assets: Asset[],
+): string[] {
+  if (!param) return [];
+  const byId = assets.find((a) => a.id === param);
+  if (byId) return [byId.id];
+  const byName = assets.find((a) => a.name === param);
+  if (byName) return [byName.id];
+  return [param];
+}
 
 export default function ContractsPage() {
+  const searchParams = useSearchParams();
+  const assetParam = searchParams.get("asset");
+  // Remount when the URL asset filter changes so initial state picks it up.
+  return <ContractsPageContent key={assetParam ?? ""} assetParam={assetParam} />;
+}
+
+function ContractsPageContent({ assetParam }: { assetParam: string | null }) {
   const contracts = useAppStore((s) => s.contracts);
   const assets = useAppStore((s) => s.assets);
   const removeContract = useAppStore((s) => s.removeContract);
 
   const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<ContractFiltersState>(() => ({
+    ...EMPTY_FILTERS,
+    asset: assetFilterFromParam(assetParam, assets),
+  }));
   const { open: wizardOpen, setOpen: setWizardOpen, openDeferred } =
     useDeferredOpen();
   const {
@@ -65,13 +95,13 @@ export default function ContractsPage() {
   const assetName = (id: string) =>
     assets.find((a) => a.id === id)?.name ?? "-";
 
-  const filtered = useMemo(
-    () =>
-      contracts.filter((c) =>
-        c.name.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [contracts, query],
-  );
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    const bySearch = q
+      ? contracts.filter((c) => c.name.toLowerCase().includes(q))
+      : contracts;
+    return applyContractFilters(bySearch, filters);
+  }, [contracts, query, filters]);
 
   function openNew() {
     openDeferred(() => setEditing(null));
@@ -98,9 +128,12 @@ export default function ContractsPage() {
           <option value="all">All contracts</option>
           <option value="expired">Expired contracts</option>
         </NativeSelect>
-        <Button variant="outline" size="icon" aria-label="Filter">
-          <Filter className="size-4" />
-        </Button>
+        <ContractFilters
+          contracts={contracts}
+          assets={assets}
+          value={filters}
+          onChange={setFilters}
+        />
         <div className="ml-auto">
           <AddContractMenu
             tooltip={addContractTooltip}
