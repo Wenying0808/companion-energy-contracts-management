@@ -68,7 +68,7 @@ export function ContractCostComposition({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold">Cost composition</h3>
+        <h3 className="text-sm font-semibold">Contracts composition</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Where your bill comes from and which parts are negotiable. Volumes aren&apos;t
           modelled yet, so this shows the structure and unit prices — not a summed euro total.
